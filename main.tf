@@ -30,6 +30,8 @@ resource "hcloud_firewall" "k3s_firewall" {
     source_ips = [var.admin_ip_cidr]
   }
 
+  # Port 80 — reserved for HTTP ingress traffic during thesis experiment workloads
+  # (WASM vs Docker microservice benchmarks exposed via k3s NodePort or a future ingress)
   rule {
     direction  = "in"
     protocol   = "tcp"

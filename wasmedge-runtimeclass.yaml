@@ -3,3 +3,6 @@ kind: RuntimeClass
 metadata:
   name: wasmedge
 handler: wasmedge
+scheduling:
+  nodeSelector:
+    runtime.kwasm.sh/runtime: wasmedge

@@ -72,7 +72,7 @@ Create `terraform.tfvars` in this directory:
 
 ```hcl
 admin_ip_cidr = "YOUR_PUBLIC_IP/32"   # only your IP can SSH and reach NodePorts
-ssh_key_name  = "your-key-name"        # name of the SSH key in Hetzner Cloud dashboard
+ssh_key_name  = "your-key-name"       # name of the SSH key in Hetzner Cloud dashboard
 server_type   = "ccx13"
 os_image      = "ubuntu-24.04"
 location      = "nbg1"
@@ -130,66 +130,9 @@ kubectl get pods -A
 
 ---
 
-## What happens during `make up`
-
-Terraform creates:
-
-- A Hetzner firewall with the rules described above
-- A `ccx13` Ubuntu 24.04 server named `thesis-wasm-node`
-- Passes `cloud-init.sh` as `user_data`, which runs on first boot and:
-  1. Installs k3s (Traefik disabled, TLS SAN set to the public IP)
-  2. Installs WasmEdge host libraries (`/usr/local`)
-  3. Installs `containerd-shim-wasmedge-v1` to `/bin/` (k3s auto-detects it)
-  4. Restarts k3s to activate the shim
-
-Bootstrap logs are written to `/var/log/thesis-setup.log` on the server.
-
----
-
-## Recovery — if something breaks
-
-If the server is already running but setup failed part-way, you do **not** need to recreate it.
-
-### cloud-init failed entirely
-
-Re-upload and re-run the bootstrap script:
-
-```bash
-make bootstrap
-```
-
-Tail the logs on the server:
-
-```bash
-ssh -i ~/.ssh/id_hetzner_cloud root@$(terraform output -raw instance_public_ip) \
-  'tail -f /var/log/thesis-setup.log'
-```
-
-### k3s is up but the WasmEdge shim is missing
-
-Install the shim and restart k3s without touching the rest of the setup:
-
-```bash
-make fix-shim
-```
-
----
-
-## Teardown
-
-**Destroys the Hetzner server and firewall. All data on the server is lost.**
-
-```bash
-make teardown
-```
-
-This runs `terraform destroy -auto-approve` and deletes the local `hetzner-thesis.yaml` kubeconfig. The Hetzner billing stops immediately after the server is deleted.
-
----
-
 ## Repository structure
 
-```
+```bash
 .
 ├── main.tf                    # Terraform: Hetzner server + firewall
 ├── variables.tf               # Terraform: input variable declarations
@@ -214,6 +157,4 @@ This runs `terraform destroy -auto-approve` and deletes the local `hetzner-thesi
 | `deploy-stack` | Deploy Prometheus, Grafana, and the WasmEdge RuntimeClass     |
 | `test`         | Run a WASM smoke-test pod and print its output                |
 | `info`         | Print Grafana/Prometheus URLs and SSH command                 |
-| `bootstrap`    | Re-run `cloud-init.sh` on an already-running server           |
-| `fix-shim`     | Install the WasmEdge shim on a running server and restart k3s |
 | `teardown`     | `terraform destroy` — delete everything                       |

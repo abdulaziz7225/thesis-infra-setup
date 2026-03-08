@@ -1,11 +1,11 @@
-.PHONY: setup-local up bootstrap fix-shim configure label-node deploy-stack test info teardown
+.PHONY: setup-local up configure label-node deploy-stack test info teardown
 
 SSH_KEY  := ~/.ssh/id_hetzner_cloud
 SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
 KC       := KUBECONFIG=./hetzner-thesis.yaml
 
 # Derive the server IP from Terraform state (works offline after `up`)
-IP := $(shell terraform output -raw instance_public_ip 2>/dev/null)
+IP = $(shell terraform output -raw instance_public_ip 2>/dev/null)
 
 # ── 1. Local prerequisites ────────────────────────────────────────────────────
 # Install k6 locally (run once). Requires apt-based Linux.
@@ -14,7 +14,7 @@ setup-local:
 		echo "k6 already installed. Skipping."; \
 	else \
 		echo "Installing k6..."; \
-		sudo gpg -k; \
+		sudo install -m 0755 -d /usr/share/keyrings; \
 		sudo gpg --no-default-keyring \
 			--keyring /usr/share/keyrings/k6-archive-keyring.gpg \
 			--keyserver hkp://keyserver.ubuntu.com:80 \
@@ -28,29 +28,6 @@ setup-local:
 up:
 	terraform apply -auto-approve
 
-# ── 2b. Manually run the bootstrap script on an already-running server ────────
-# Use this to recover from a failed cloud-init without recreating the server.
-bootstrap:
-	@echo "Uploading and running bootstrap script on $(IP)..."
-	scp $(SSH_OPTS) -i $(SSH_KEY) cloud-init.sh root@$(IP):/tmp/thesis-bootstrap.sh
-	ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "bash /tmp/thesis-bootstrap.sh"
-	@echo "Bootstrap complete. Tail logs with: ssh -i $(SSH_KEY) root@$(IP) 'tail -f /var/log/thesis-setup.log'"
-
-# ── 2c. Fix shim on running server (when bootstrap already ran but shim step failed) ──
-# k3s v1.34+ auto-detects the shim; no containerd config template needed.
-fix-shim:
-	@echo "Installing shim binary and restarting k3s..."
-	ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "\
-		if [ ! -f /tmp/shim.tar.gz ]; then \
-		  wget -q https://github.com/containerd/runwasi/releases/download/containerd-shim-wasmedge%2Fv0.6.0/containerd-shim-wasmedge-x86_64-linux-musl.tar.gz -O /tmp/shim.tar.gz; \
-		fi && \
-		tar -xf /tmp/shim.tar.gz -C /tmp/ && \
-		cp /tmp/containerd-shim-wasmedge-v1 /bin/containerd-shim-wasmedge-v1 && \
-		chmod +x /bin/containerd-shim-wasmedge-v1 && \
-		rm -f /var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.tmpl && \
-		systemctl restart k3s && \
-		echo 'Done — shim installed, k3s restarted'"
-
 # ── 3. Fetch kubeconfig (waits for k3s to be ready) ──────────────────────────
 configure:
 	@echo "Waiting for SSH..."
@@ -58,7 +35,8 @@ configure:
 		'until ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "echo ok" 2>/dev/null; \
 		 do sleep 5; echo "SSH not ready..."; done'
 	@echo "Waiting for cloud-init to complete..."
-	@ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "cloud-init status --wait" 2>/dev/null || true
+	@ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "cloud-init status --wait" 2>/dev/null || \
+		echo "WARNING: cloud-init may have failed — check /var/log/thesis-setup.log on the server"
 	@echo "Waiting for k3s kubeconfig..."
 	@until ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) \
 		"[ -f /etc/rancher/k3s/k3s.yaml ]" 2>/dev/null; \
@@ -93,7 +71,7 @@ deploy-stack:
 test:
 	$(KC) kubectl delete pod wasmedge-test --ignore-not-found
 	$(KC) kubectl apply -f test-wasm.yaml
-	$(KC) kubectl wait --for=condition=Ready pod/wasmedge-test --timeout=60s || true
+	$(KC) kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/wasmedge-test --timeout=60s || true
 	$(KC) kubectl logs wasmedge-test
 	$(KC) kubectl delete pod wasmedge-test --ignore-not-found
 
