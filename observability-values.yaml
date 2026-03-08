@@ -1,0 +1,39 @@
+# Helm values for kube-prometheus-stack
+# Tuned for single-node thesis experiment environment
+
+grafana:
+  # Expose Grafana via NodePort at a fixed port for direct browser access
+  service:
+    type: NodePort
+    nodePort: 32000
+  # Known password — fine for a private research VM
+  adminPassword: "thesis-grafana"
+  # Keep default dashboards (node exporter, k8s cluster, etc.)
+  defaultDashboardsEnabled: true
+  # No persistent storage needed — dashboards are recreated on redeploy
+  persistence:
+    enabled: false
+
+prometheus:
+  # Expose Prometheus UI via NodePort for direct ad-hoc queries
+  service:
+    type: NodePort
+    nodePort: 32090
+  prometheusSpec:
+    # 5s intervals give fine-grained resolution for short load-test runs
+    scrapeInterval: 5s
+    evaluationInterval: 5s
+    # Keep 7 days of data — more than enough for thesis experiments
+    retention: 7d
+    # Persist metrics to the k3s local-path StorageClass (80 GB disk on ccx13)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
+
+# Disable AlertManager — not needed for experiments, saves RAM
+alertmanager:
+  enabled: false
