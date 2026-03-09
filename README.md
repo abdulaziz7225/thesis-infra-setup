@@ -75,10 +75,10 @@ admin_ip_cidr = "YOUR_PUBLIC_IP/32"   # only your IP can SSH and reach NodePorts
 ssh_key_name  = "your-key-name"       # name of the SSH key in Hetzner Cloud dashboard
 server_type   = "ccx13"
 os_image      = "ubuntu-24.04"
-location      = "nbg1"
+location      = "nbg1"                # Nuremberg
 ```
 
-Find your public IP: `curl -s ifconfig.me`
+Find your public IP: `curl -4 ifconfig.me`
 
 ### 2. API token
 
@@ -148,13 +148,13 @@ kubectl get pods -A
 
 ## Makefile reference
 
-| Target         | Description                                                   |
-| -------------- | ------------------------------------------------------------- |
-| `setup-local`  | Install k6 locally (run once)                                 |
-| `up`           | `terraform apply` — provision the server                      |
-| `configure`    | Fetch kubeconfig from server → `hetzner-thesis.yaml`          |
-| `label-node`   | Label the node with WasmEdge capability                       |
-| `deploy-stack` | Deploy Prometheus, Grafana, and the WasmEdge RuntimeClass     |
-| `test`         | Run a WASM smoke-test pod and print its output                |
-| `info`         | Print Grafana/Prometheus URLs and SSH command                 |
-| `teardown`     | `terraform destroy` — delete everything                       |
+| Target         | Description                                               |
+| -------------- | --------------------------------------------------------- |
+| `setup-local`  | Install k6 locally (run once)                             |
+| `up`           | `terraform apply` — provision the server                  |
+| `configure`    | Fetch kubeconfig from server → `hetzner-thesis.yaml`      |
+| `label-node`   | Label the node with WasmEdge capability                   |
+| `deploy-stack` | Deploy Prometheus, Grafana, and the WasmEdge RuntimeClass |
+| `test`         | Run a WASM smoke-test pod and print its output            |
+| `info`         | Print Grafana/Prometheus URLs and SSH command             |
+| `teardown`     | `terraform destroy` — delete everything                   |
