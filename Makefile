@@ -33,14 +33,14 @@ configure:
 	@echo "Waiting for SSH..."
 	@timeout 300 bash -c \
 		'until ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "echo ok" 2>/dev/null; \
-		 do sleep 5; echo "SSH not ready..."; done'
+		 do sleep 10; echo "SSH not ready..."; done'
 	@echo "Waiting for cloud-init to complete..."
 	@ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "cloud-init status --wait" 2>/dev/null || \
 		echo "WARNING: cloud-init may have failed — check /var/log/thesis-setup.log on the server"
 	@echo "Waiting for k3s kubeconfig..."
 	@until ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) \
 		"[ -f /etc/rancher/k3s/k3s.yaml ]" 2>/dev/null; \
-		do sleep 15; echo "Still waiting for k3s..."; done
+		do sleep 10; echo "Still waiting for k3s..."; done
 	@echo "Fetching kubeconfig..."
 	scp $(SSH_OPTS) -i $(SSH_KEY) \
 		root@$(IP):/etc/rancher/k3s/k3s.yaml ./hetzner-thesis.yaml

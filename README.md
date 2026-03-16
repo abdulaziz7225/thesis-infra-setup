@@ -101,10 +101,10 @@ terraform init
 ## Full setup — step by step
 
 ```bash
-make up            # 1. Provision Hetzner server + run cloud-init (k3s + WasmEdge ~5-10 min)
+make up            # 1. Provision Hetzner server + run cloud-init (k3s + WasmEdge)
 make configure     # 2. Wait for k3s, fetch kubeconfig → hetzner-thesis.yaml
 make label-node    # 3. Label node with WasmEdge capability
-make deploy-stack  # 4. Deploy Prometheus + Grafana + WasmEdge RuntimeClass (~5 min)
+make deploy-stack  # 4. Deploy Prometheus + Grafana + WasmEdge RuntimeClass
 make test          # 5. Smoke-test: run a WASM pod and verify output
 make info          # 6. Print access URLs and credentials
 ```

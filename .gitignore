@@ -49,3 +49,6 @@ hetzner-thesis.yaml
 
 # Environment variables
 .env
+
+# Peacock Extension theme color settings
+.vscode/

@@ -2,6 +2,8 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: wasmedge-test
+  annotations:
+    run.oci.handler: wasmedge
 spec:
   runtimeClassName: wasmedge
   containers:
