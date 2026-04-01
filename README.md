@@ -3,41 +3,43 @@
 Infrastructure-as-code for the master thesis:
 **"A Comparative Analysis of WebAssembly and Docker for Microservice Architecture in Kubernetes"**
 
-A single-node Kubernetes cluster on Hetzner Cloud, pre-configured to run both standard OCI containers and WebAssembly (WASM) workloads side-by-side, with Prometheus and Grafana for metrics collection.
+A single-node Kubernetes cluster on Hetzner Cloud, pre-configured to run both standard OCI containers
+and WebAssembly (WASI P2) workloads side-by-side, with Prometheus and Grafana for metrics collection.
 
 ---
 
 ## Architecture overview
 
-```bash
+```text
 Hetzner Cloud (ccx13 — 2 vCPU, 8 GB RAM, 80 GB disk)
 └── Ubuntu 24.04
     └── k3s (lightweight Kubernetes, no Traefik)
-        ├── WasmEdge runtime  ← runs WASM pods via containerd shim
-        ├── runc              ← runs standard Docker/OCI pods
+        ├── SpinKube runtime  ← WASI P2 Wasm pods via containerd-shim-spin-v2
+        ├── runc              ← standard Docker/OCI pods
         └── observability namespace
-            ├── Prometheus (NodePort 32090, 5s scrape interval, 10 Gi PVC)
+            ├── Prometheus (NodePort 32090, 5 s scrape interval, 10 Gi PVC)
             └── Grafana    (NodePort 32000, admin / thesis-grafana)
 ```
 
 **Key components:**
 
-| Component                | Version / Detail                       |
-| ------------------------ | -------------------------------------- |
-| k3s                      | v1.34.5+k3s1 (containerd v2)           |
-| WasmEdge                 | latest (installed via official script) |
-| containerd-shim-wasmedge | v0.6.0 (runwasi)                       |
-| kube-prometheus-stack    | via Helm, prometheus-community chart   |
-| k6                       | installed locally for load testing     |
+| Component               | Version / Detail                                        |
+| ----------------------- | ------------------------------------------------------- |
+| k3s                     | v1.35.2+k3s1 (containerd v2)                           |
+| containerd-shim-spin-v2 | v0.17.0 (SpinKube; embeds Spin + Wasmtime/Cranelift)   |
+| SpinOperator            | v0.6.1 (Helm, `spinoperator` chart; manages SpinApp CRDs) |
+| cert-manager            | v1.16.3 (prerequisite for SpinOperator webhooks)       |
+| kube-prometheus-stack   | via Helm, prometheus-community chart                   |
+| k6                      | installed locally for load testing                     |
 
 **Firewall rules (managed by Terraform):**
 
-| Port        | Access        | Purpose                        |
-| ----------- | ------------- | ------------------------------ |
-| 22          | admin IP only | SSH                            |
-| 6443        | admin IP only | Kubernetes API                 |
-| 80          | public        | HTTP                           |
-| 30000–32767 | admin IP only | NodePort (Grafana, Prometheus) |
+| Port        | Access        | Purpose                          |
+| ----------- | ------------- | -------------------------------- |
+| 22          | admin IP only | SSH                              |
+| 6443        | admin IP only | Kubernetes API                   |
+| 80          | public        | HTTP                             |
+| 30000–32767 | admin IP only | NodePort (Grafana, Prometheus, benchmark services) |
 
 ---
 
@@ -101,17 +103,17 @@ terraform init
 ## Full setup — step by step
 
 ```bash
-make up            # 1. Provision Hetzner server + run cloud-init (k3s + WasmEdge)
+make up            # 1. Provision Hetzner server + run cloud-init (k3s + containerd-shim-spin-v2)
 make configure     # 2. Wait for k3s, fetch kubeconfig → hetzner-thesis.yaml
-make label-node    # 3. Label node with WasmEdge capability
-make deploy-stack  # 4. Deploy Prometheus + Grafana + WasmEdge RuntimeClass
-make test          # 5. Smoke-test: run a WASM pod and verify output
+make label-node    # 3. Label node with SpinKube capability (runtime.spin.fermyon.com/v2=true)
+make deploy-stack  # 4. Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass
+make test          # 5. Smoke-test: run a SpinApp pod and verify HTTP 200
 make info          # 6. Print access URLs and credentials
 ```
 
 After `make info` you will see:
 
-```bash
+```text
 === Thesis Experiment Access Info ===
   Server IP  : 1.2.3.4
   Grafana    : http://1.2.3.4:32000  (admin / thesis-grafana)
@@ -132,15 +134,17 @@ kubectl get pods -A
 
 ## Repository structure
 
-```bash
+```text
 .
 ├── main.tf                    # Terraform: Hetzner server + firewall
 ├── variables.tf               # Terraform: input variable declarations
 ├── terraform.tfvars           # Your local config (not committed)
-├── cloud-init.sh              # Bootstrap script (k3s + WasmEdge, runs on first boot)
-├── wasmedge-runtimeclass.yaml # Kubernetes RuntimeClass for WasmEdge pods
-├── test-wasm.yaml             # Smoke-test WASM pod (wasmedge/example-wasi)
+├── cloud-init.sh              # Bootstrap script (k3s + containerd-shim-spin-v2)
+├── spin-runtimeclass.yaml     # Kubernetes RuntimeClass for SpinKube (wasmtime-spin)
+├── test-spin.yaml             # Smoke-test SpinApp (hello-spin, validates Wasmtime shim)
 ├── observability-values.yaml  # Helm values for kube-prometheus-stack
+├── wasmedge-runtimeclass.yaml # (Optional) RuntimeClass for WasmEdge/WASI P1 pods
+├── test-wasmedge.yaml         # (Optional) Smoke-test WasmEdge pod
 └── Makefile                   # All workflow targets
 ```
 
@@ -148,13 +152,45 @@ kubectl get pods -A
 
 ## Makefile reference
 
-| Target         | Description                                               |
-| -------------- | --------------------------------------------------------- |
-| `setup-local`  | Install k6 locally (run once)                             |
-| `up`           | `terraform apply` — provision the server                  |
-| `configure`    | Fetch kubeconfig from server → `hetzner-thesis.yaml`      |
-| `label-node`   | Label the node with WasmEdge capability                   |
-| `deploy-stack` | Deploy Prometheus, Grafana, and the WasmEdge RuntimeClass |
-| `test`         | Run a WASM smoke-test pod and print its output            |
-| `info`         | Print Grafana/Prometheus URLs and SSH command             |
-| `teardown`     | `terraform destroy` — delete everything                   |
+| Target               | Description                                                        |
+| -------------------- | ------------------------------------------------------------------ |
+| `setup-local`        | Install k6 locally (run once)                                      |
+| `up`                 | `terraform apply` — provision the server                           |
+| `configure`          | Fetch kubeconfig from server → `hetzner-thesis.yaml`               |
+| `label-node`         | Label node with SpinKube capability (`runtime.spin.fermyon.com/v2=true`) |
+| `deploy-stack`       | Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass |
+| `test`               | Run a Spin smoke-test SpinApp and verify HTTP 200                  |
+| `info`               | Print Grafana/Prometheus URLs and SSH command                      |
+| `teardown`           | `terraform destroy` — delete everything                            |
+| `label-node-wasmedge` | *(Optional)* Label node for WasmEdge/WASI P1 pods                |
+| `deploy-wasmedge`    | *(Optional)* Deploy WasmEdge RuntimeClass                         |
+
+---
+
+## Optional: WasmEdge (WASI P1) comparison
+
+WasmEdge is **not deployed by default**. It is available as an optional comparison runtime
+for the WASI P1 appendix (Appendix B of the thesis report).
+
+To add WasmEdge support to an already-running cluster:
+
+```bash
+# 1. Re-provision with WasmEdge enabled (cloud-init installs crun --with-wasmedge)
+ENABLE_WASMEDGE=true make up
+
+# 2. Label the node for WasmEdge pods
+make label-node-wasmedge
+
+# 3. Deploy the WasmEdge RuntimeClass
+make deploy-wasmedge
+
+# 4. Smoke-test
+kubectl apply -f test-wasmedge.yaml
+kubectl logs -n default <pod-name>
+
+# 5. Deploy optional benchmark variants
+kubectl apply -f ../thesis-experiments/k8s/01-prime-sieve/optional/
+```
+
+Note: WasmEdge variants run at NodePorts 30085–30086, which do not conflict with the
+primary SpinKube variants (30081–30084). Both runtimes can coexist on the same node.

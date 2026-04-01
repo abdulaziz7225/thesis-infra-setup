@@ -1,0 +1,12 @@
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: wasmtime-spin
+# "spin" maps to the containerd runtime plugin registered in config.toml.tmpl:
+#   [plugins.'io.containerd.cri.v1.runtime'.containerd.runtimes.spin]
+#     runtime_type = 'io.containerd.spin.v2'
+# which resolves to /usr/local/bin/containerd-shim-spin-v2.
+handler: spin
+scheduling:
+  nodeSelector:
+    runtime.spin.sh/runtime: spin

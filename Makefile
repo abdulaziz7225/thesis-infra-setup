@@ -1,4 +1,4 @@
-.PHONY: setup-local up configure label-node deploy-stack test info teardown
+.PHONY: setup-local up configure label-node label-node-wasmedge deploy-stack deploy-wasmedge test info teardown
 
 SSH_KEY  := ~/.ssh/id_hetzner_cloud
 SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
@@ -47,16 +47,41 @@ configure:
 	sed -i "s/127.0.0.1/$(IP)/g" ./hetzner-thesis.yaml
 	@echo "kubeconfig saved to ./hetzner-thesis.yaml"
 
-# ── 4. Label node with WasmEdge capability ───────────────────────────────────
+# ── 4. Label node for SpinKube (primary default) ─────────────────────────────
 label-node:
+	$(KC) kubectl label node --all \
+		runtime.spin.sh/runtime=spin \
+		--overwrite
+
+# ── 4a. (Optional) Add WasmEdge labels for WASI P1 comparison variants ───────
+label-node-wasmedge:
 	$(KC) kubectl label node --all \
 		runtime.kwasm.sh/runtime=wasmedge \
 		node.kubernetes.io/wasm-runtime=wasmedge \
 		--overwrite
 
-# ── 5. Deploy observability stack and WasmEdge RuntimeClass ──────────────────
+# ── 5. Deploy observability stack and SpinKube RuntimeClass ──────────────────
 deploy-stack:
-	$(KC) kubectl apply -f wasmedge-runtimeclass.yaml
+	$(KC) kubectl apply -f spin-runtimeclass.yaml
+	# cert-manager is required by SpinOperator's admission webhook.
+	$(KC) kubectl apply -f \
+		https://github.com/cert-manager/cert-manager/releases/download/v1.16.3/cert-manager.yaml
+	@echo "Waiting for cert-manager to be ready..."
+	$(KC) kubectl rollout status deployment/cert-manager         -n cert-manager --timeout=300s
+	$(KC) kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=300s
+	# SpinOperator watches SpinApp CRDs and manages the Spin workload lifecycle.
+	# Spin uses Wasmtime/Cranelift internally (see spinkube-rationale.md).
+	# SpinOperator requires CRDs to be installed first
+	$(KC) kubectl apply -f \
+		https://github.com/spinframework/spin-operator/releases/download/v0.6.1/spin-operator.crds.yaml
+	$(KC) helm upgrade --install spin-operator \
+		--namespace spin-operator \
+		--create-namespace \
+		oci://ghcr.io/spinframework/charts/spin-operator \
+		--version 0.6.1 \
+		--wait
+	$(KC) kubectl apply -f \
+		https://github.com/spinframework/spin-operator/releases/download/v0.6.1/spin-operator.shim-executor.yaml
 	$(KC) helm repo add prometheus-community \
 		https://prometheus-community.github.io/helm-charts
 	$(KC) helm repo update
@@ -67,13 +92,23 @@ deploy-stack:
 		--timeout 10m \
 		--wait
 
-# ── 6. Smoke-test: run a WASM pod and print its output ───────────────────────
+# ── 5a. (Optional) Deploy WasmEdge RuntimeClass for WASI P1 comparison ───────
+deploy-wasmedge:
+	$(KC) kubectl label node --all \
+		runtime.kwasm.sh/runtime=wasmedge \
+		node.kubernetes.io/wasm-runtime=wasmedge \
+		--overwrite
+	$(KC) kubectl apply -f wasmedge-runtimeclass.yaml
+
+# ── 6. Smoke-test: deploy a SpinApp and verify it responds ───────────────────
 test:
-	$(KC) kubectl delete pod wasmedge-test --ignore-not-found
-	$(KC) kubectl apply -f test-wasm.yaml
-	$(KC) kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/wasmedge-test --timeout=60s || true
-	$(KC) kubectl logs wasmedge-test
-	$(KC) kubectl delete pod wasmedge-test --ignore-not-found
+	$(KC) kubectl apply -f test-spin.yaml
+	@echo "Waiting for hello-spin SpinApp to be available..."
+	$(KC) kubectl wait --for=condition=Available spinapp/hello-spin \
+		-n hello-spin --timeout=120s || true
+	$(KC) kubectl logs -n hello-spin \
+		-l core.spinkube.dev/app-name=hello-spin --tail=20
+	$(KC) kubectl delete -f test-spin.yaml --ignore-not-found
 
 # ── 7. Show access URLs and credentials ──────────────────────────────────────
 info:

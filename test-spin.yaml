@@ -1,0 +1,40 @@
+# SpinKube smoke test — deploys the hello-spin SpinApp using
+# the official example image. Used by `make test` to verify the SpinKube
+# runtime chain (containerd-shim-spin-v2 → Wasmtime/Cranelift) is working.
+#
+# Prerequisites (run once after cluster creation):
+#   make deploy-stack   # installs cert-manager + SpinOperator + spin-runtimeclass
+#   make label-node     # labels node with runtime.spin.sh/runtime=spin
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hello-spin
+---
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinAppExecutor
+metadata:
+  name: containerd-shim-spin
+  namespace: hello-spin
+spec:
+  createDeployment: true
+  deploymentConfig:
+    runtimeClassName: wasmtime-spin
+    installDefaultCACerts: true
+---
+apiVersion: core.spinkube.dev/v1alpha1
+kind: SpinApp
+metadata:
+  name: hello-spin
+  namespace: hello-spin
+spec:
+  image: "ghcr.io/spinframework/containerd-shim-spin/examples/spin-rust-hello:v0.23.0"
+  executor: containerd-shim-spin
+  replicas: 1
+  resources:
+    requests:
+      cpu:    "250m"
+      memory: "64Mi"
+    limits:
+      cpu:    "500m"
+      memory: "128Mi"
