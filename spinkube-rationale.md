@@ -10,7 +10,7 @@ over the primary alternative (WasmCloud).
 
 **Fermyon Spin** is an open-source framework for building and running HTTP microservices
 as WebAssembly components. It implements the `wasi:http/incoming-handler` interface from
-WASI Preview 2, handling all HTTP connection management internally and dispatching each
+WASI Preview 2 (P2), handling all HTTP connection management internally and dispatching each
 incoming request to the component's `handle` export. Applications are single-function
 request handlers — no server loop required.
 
@@ -102,7 +102,7 @@ This behavioural difference is documented as a confounding variable in the thesi
 
 ## WasmEdge: Archived, Not Primary
 
-WasmEdge/WASI P1 was the initial prototype runtime (archived in `wasm/wasmedge/`). It was
+WasmEdge/WASI Preview 1 (P1) was the initial prototype runtime (archived in `wasm/wasmedge/`). It was
 superseded by SpinKube/WASI P2 for the following reasons:
 
 1. **WASI P2 is the current standard**: `wasi:http/incoming-handler` (WASI 0.2) eliminates all P1 workarounds — no `wasmedge_wasi_socket` Rust crate, no `//go:wasmimport` custom socket directives, no `serveWasmEdge()` TCP accept loop. The code is cleaner and portable.

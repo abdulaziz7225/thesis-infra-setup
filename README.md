@@ -4,7 +4,7 @@ Infrastructure-as-code for the master thesis:
 **"A Comparative Analysis of WebAssembly and Docker for Microservice Architecture in Kubernetes"**
 
 A single-node Kubernetes cluster on Hetzner Cloud, pre-configured to run both standard OCI containers
-and WebAssembly (WASI P2) workloads side-by-side, with Prometheus and Grafana for metrics collection.
+and WebAssembly (WASI Preview 2 (P2)) workloads side-by-side, with Prometheus and Grafana for metrics collection.
 
 ---
 
@@ -143,7 +143,7 @@ kubectl get pods -A
 ├── spin-runtimeclass.yaml     # Kubernetes RuntimeClass for SpinKube (wasmtime-spin)
 ├── test-spin.yaml             # Smoke-test SpinApp (hello-spin, validates Wasmtime shim)
 ├── observability-values.yaml  # Helm values for kube-prometheus-stack
-├── wasmedge-runtimeclass.yaml # (Optional) RuntimeClass for WasmEdge/WASI P1 pods
+├── wasmedge-runtimeclass.yaml # (Optional) RuntimeClass for WasmEdge/WASI Preview 1 (P1) pods
 ├── test-wasmedge.yaml         # (Optional) Smoke-test WasmEdge pod
 └── Makefile                   # All workflow targets
 ```
