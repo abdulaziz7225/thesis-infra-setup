@@ -3,8 +3,8 @@
 # runtime chain (containerd-shim-spin-v2 → Wasmtime/Cranelift) is working.
 #
 # Prerequisites (run once after cluster creation):
-#   make deploy-stack   # installs cert-manager + SpinOperator + spin-runtimeclass
-#   make label-node     # labels node with runtime.spin.sh/runtime=spin
+#   make deploy   # installs cert-manager + SpinOperator + spin-runtimeclass
+#   make label    # labels node with runtime.spin.sh/runtime=spin
 ---
 apiVersion: v1
 kind: Namespace

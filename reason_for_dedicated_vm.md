@@ -12,18 +12,18 @@ Running experiments on a personal laptop introduces several threats to measureme
 
 - **Background process interference.** Desktop services, browsers, and IDEs compete for CPU, memory, and I/O with the workloads under measurement, introducing noise that is difficult to control.
 - **Non-deterministic scheduling.** CPU frequency scaling and thermal throttling cause unpredictable variance in latency measurements between runs.
-- **Runtime nesting.** Minikube adds a hypervisor layer; k3d nests K3s inside Docker containers. Both complicate the registration of the WasmEdge containerd shim and add runtime overhead that is not part of the research question.
+- **Runtime nesting.** Minikube adds a hypervisor layer; k3d nests K3s inside Docker containers. Both complicate the registration of the SpinKube containerd shim and add runtime overhead that is not part of the research question.
 - **Poor reproducibility.** Results on a personal machine are tied to its specific software state and cannot be reliably reproduced on another machine or after system updates.
 
 ---
 
 ## 3. Decision: Dedicated Cloud VM with K3s
 
-To address these limitations, a dedicated Hetzner Cloud virtual machine (`ccx13`: 2 dedicated vCPUs, 8 GB RAM, Ubuntu 24.04 LTS) was provisioned exclusively for the experiment. The entire environment — server, firewall, Kubernetes distribution, WasmEdge runtime, and observability stack — is defined as code in this repository using Terraform and cloud-init, ensuring the environment is identical on every provisioning.
+To address these limitations, a dedicated Hetzner Cloud virtual machine (`ccx13`: 2 dedicated vCPUs, 8 GB RAM, Ubuntu 24.04 LTS) was provisioned exclusively for the experiment. The entire environment — server, firewall, Kubernetes distribution, Wasm runtime, and observability stack — is defined as code in this repository using Terraform and cloud-init, ensuring the environment is identical on every provisioning.
 
 **K3s** was chosen as the Kubernetes distribution for the following reasons:
 
-- It uses containerd directly as its container runtime, and its v1.34+ release auto-detects the `containerd-shim-wasmedge` binary placed in `/usr/local/bin`, making WasmEdge integration straightforward.
+- It uses containerd directly as its container runtime, which integrates cleanly with `containerd-shim-spin-v2` for SpinKube (Wasmtime) workloads.
 - Its minimal footprint (single binary, SQLite-backed control plane) leaves more RAM available for the workloads under measurement.
 - It is designed for production use, making its scheduling and runtime behaviour more representative of real deployment targets than Minikube or k3d.
 
@@ -41,4 +41,4 @@ Traefik was disabled at install time (`--disable traefik`) to avoid introducing 
 | Reproducibility | Low | Full (infra-as-code) |
 | Measurement isolation | Low | High (single-purpose host) |
 
-The dedicated VM approach eliminates background noise, provides a stable and reproducible hardware baseline, and supports the WasmEdge runtime integration without the constraints imposed by nested virtualisation or Docker-in-Docker setups.
+The dedicated VM approach eliminates background noise, provides a stable and reproducible hardware baseline, and supports the SpinKube runtime integration without the constraints imposed by nested virtualisation or Docker-in-Docker setups.

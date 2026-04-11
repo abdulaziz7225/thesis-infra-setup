@@ -100,22 +100,6 @@ This behavioural difference is documented as a confounding variable in the thesi
 
 ---
 
-## WasmEdge: Archived, Not Primary
-
-WasmEdge/WASI Preview 1 (P1) was the initial prototype runtime (archived in `wasm/wasmedge/`). It was
-superseded by SpinKube/WASI P2 for the following reasons:
-
-1. **WASI P2 is the current standard**: `wasi:http/incoming-handler` (WASI 0.2) eliminates all P1 workarounds — no `wasmedge_wasi_socket` Rust crate, no `//go:wasmimport` custom socket directives, no `serveWasmEdge()` TCP accept loop. The code is cleaner and portable.
-2. **Proprietary ABI**: WasmEdge's socket extension is not part of the WASI standard. Benchmarking it as the primary Wasm result would represent a vendor-specific path rather than the current ecosystem direction.
-3. **TinyGo gap**: WasmEdge P1 required a custom `server.go` with low-level socket imports; TinyGo's `net/http` server does not work out of the box on WASI P1. Note: TinyGo's `-target=wasip2` also cannot export `wasi:http/incoming-handler` (it hardwires `wasi:cli/command`); the Spin Go SDK (`github.com/spinframework/spin-go-sdk/v2`, `-target=wasip1`) is used instead.
-
-The WasmEdge prototypes are kept as an archive for the thesis appendix (historical context for
-why the switch to SpinKube was made). The optional infrastructure support (`ENABLE_WASMEDGE=true`
-in `cloud-init.sh`, `label-node-wasmedge` Makefile target, `wasmedge-runtimeclass.yaml`) is
-retained but not deployed in the primary experiment.
-
----
-
 ## References
 
 - [Fermyon Spin](https://github.com/spinframework/spin)

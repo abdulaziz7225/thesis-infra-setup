@@ -105,8 +105,8 @@ terraform init
 ```bash
 make up            # 1. Provision Hetzner server + run cloud-init (k3s + containerd-shim-spin-v2)
 make configure     # 2. Wait for k3s, fetch kubeconfig → hetzner-thesis.yaml
-make label-node    # 3. Label node with SpinKube capability (runtime.spin.fermyon.com/v2=true)
-make deploy-stack  # 4. Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass
+make label         # 3. Label node with SpinKube capability (runtime.spin.fermyon.com/v2=true)
+make deploy        # 4. Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass
 make test          # 5. Smoke-test: run a SpinApp pod and verify HTTP 200
 make info          # 6. Print access URLs and credentials
 ```
@@ -143,8 +143,6 @@ kubectl get pods -A
 ├── spin-runtimeclass.yaml     # Kubernetes RuntimeClass for SpinKube (wasmtime-spin)
 ├── test-spin.yaml             # Smoke-test SpinApp (hello-spin, validates Wasmtime shim)
 ├── observability-values.yaml  # Helm values for kube-prometheus-stack
-├── wasmedge-runtimeclass.yaml # (Optional) RuntimeClass for WasmEdge/WASI Preview 1 (P1) pods
-├── test-wasmedge.yaml         # (Optional) Smoke-test WasmEdge pod
 └── Makefile                   # All workflow targets
 ```
 
@@ -157,40 +155,8 @@ kubectl get pods -A
 | `setup-local`        | Install k6 locally (run once)                                      |
 | `up`                 | `terraform apply` — provision the server                           |
 | `configure`          | Fetch kubeconfig from server → `hetzner-thesis.yaml`               |
-| `label-node`         | Label node with SpinKube capability (`runtime.spin.fermyon.com/v2=true`) |
-| `deploy-stack`       | Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass |
+| `label`              | Label node with SpinKube capability (`runtime.spin.fermyon.com/v2=true`) |
+| `deploy`             | Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass |
 | `test`               | Run a Spin smoke-test SpinApp and verify HTTP 200                  |
 | `info`               | Print Grafana/Prometheus URLs and SSH command                      |
 | `teardown`           | `terraform destroy` — delete everything                            |
-| `label-node-wasmedge` | *(Optional)* Label node for WasmEdge/WASI P1 pods                |
-| `deploy-wasmedge`    | *(Optional)* Deploy WasmEdge RuntimeClass                         |
-
----
-
-## Optional: WasmEdge (WASI P1) comparison
-
-WasmEdge is **not deployed by default**. It is available as an optional comparison runtime
-for the WASI P1 appendix (Appendix B of the thesis report).
-
-To add WasmEdge support to an already-running cluster:
-
-```bash
-# 1. Re-provision with WasmEdge enabled (cloud-init installs crun --with-wasmedge)
-ENABLE_WASMEDGE=true make up
-
-# 2. Label the node for WasmEdge pods
-make label-node-wasmedge
-
-# 3. Deploy the WasmEdge RuntimeClass
-make deploy-wasmedge
-
-# 4. Smoke-test
-kubectl apply -f test-wasmedge.yaml
-kubectl logs -n default <pod-name>
-
-# 5. Deploy optional benchmark variants
-kubectl apply -f ../thesis-experiments/k8s/01-prime-sieve/optional/
-```
-
-Note: WasmEdge variants run at NodePorts 30085–30086, which do not conflict with the
-primary SpinKube variants (30081–30084). Both runtimes can coexist on the same node.

@@ -1,4 +1,4 @@
-.PHONY: setup-local up configure label-node label-node-wasmedge deploy-stack deploy-wasmedge test info teardown
+.PHONY: setup-local up configure label deploy test info teardown
 
 SSH_KEY  := ~/.ssh/id_hetzner_cloud
 SSH_OPTS := -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
@@ -47,21 +47,14 @@ configure:
 	sed -i "s/127.0.0.1/$(IP)/g" ./hetzner-thesis.yaml
 	@echo "kubeconfig saved to ./hetzner-thesis.yaml"
 
-# ── 4. Label node for SpinKube (primary default) ─────────────────────────────
-label-node:
+# ── 4. Label node for SpinKube ───────────────────────────────────────────────
+label:
 	$(KC) kubectl label node --all \
 		runtime.spin.sh/runtime=spin \
 		--overwrite
 
-# ── 4a. (Optional) Add WasmEdge labels for WASI P1 comparison variants ───────
-label-node-wasmedge:
-	$(KC) kubectl label node --all \
-		runtime.kwasm.sh/runtime=wasmedge \
-		node.kubernetes.io/wasm-runtime=wasmedge \
-		--overwrite
-
 # ── 5. Deploy observability stack and SpinKube RuntimeClass ──────────────────
-deploy-stack:
+deploy:
 	$(KC) kubectl apply -f spin-runtimeclass.yaml
 	# cert-manager is required by SpinOperator's admission webhook.
 	$(KC) kubectl apply -f \
@@ -91,14 +84,6 @@ deploy-stack:
 		--values observability-values.yaml \
 		--timeout 10m \
 		--wait
-
-# ── 5a. (Optional) Deploy WasmEdge RuntimeClass for WASI P1 comparison ───────
-deploy-wasmedge:
-	$(KC) kubectl label node --all \
-		runtime.kwasm.sh/runtime=wasmedge \
-		node.kubernetes.io/wasm-runtime=wasmedge \
-		--overwrite
-	$(KC) kubectl apply -f wasmedge-runtimeclass.yaml
 
 # ── 6. Smoke-test: deploy a SpinApp and verify it responds ───────────────────
 test:
