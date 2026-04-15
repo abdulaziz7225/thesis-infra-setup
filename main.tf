@@ -13,8 +13,8 @@ data "hcloud_ssh_key" "default" {
   name = var.ssh_key_name
 }
 
-resource "hcloud_firewall" "k3s_firewall" {
-  name = "k3s-research-firewall"
+resource "hcloud_firewall" "k8s_firewall" {
+  name = "k8s-research-firewall"
 
   rule {
     direction  = "in"
@@ -31,7 +31,7 @@ resource "hcloud_firewall" "k3s_firewall" {
   }
 
   # Port 80 — reserved for HTTP ingress traffic during thesis experiment workloads
-  # (WASM vs Docker microservice benchmarks exposed via k3s NodePort or a future ingress)
+  # (WASM vs Docker microservice benchmarks exposed via the cluster NodePort range or a future ingress)
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -48,13 +48,13 @@ resource "hcloud_firewall" "k3s_firewall" {
   }
 }
 
-resource "hcloud_server" "k3s_node" {
+resource "hcloud_server" "k8s_node" {
   name         = "thesis-wasm-node"
   image        = var.os_image
   server_type  = var.server_type
   location     = var.location
   ssh_keys     = [data.hcloud_ssh_key.default.id]
-  firewall_ids = [hcloud_firewall.k3s_firewall.id]
+  firewall_ids = [hcloud_firewall.k8s_firewall.id]
 
   # Bootstrap script — stored in cloud-init.sh to avoid heredoc indentation issues
   # (Terraform <<-EOF strips tabs only, not spaces, which breaks the shebang)
@@ -62,5 +62,5 @@ resource "hcloud_server" "k3s_node" {
 }
 
 output "instance_public_ip" {
-  value = hcloud_server.k3s_node.ipv4_address
+  value = hcloud_server.k8s_node.ipv4_address
 }

@@ -17,17 +17,15 @@ Running experiments on a personal laptop introduces several threats to measureme
 
 ---
 
-## 3. Decision: Dedicated Cloud VM with K3s
+## 3. Decision: Dedicated Cloud VM with upstream Kubernetes (kubeadm)
 
-To address these limitations, a dedicated Hetzner Cloud virtual machine (`ccx13`: 2 dedicated vCPUs, 8 GB RAM, Ubuntu 24.04 LTS) was provisioned exclusively for the experiment. The entire environment — server, firewall, Kubernetes distribution, Wasm runtime, and observability stack — is defined as code in this repository using Terraform and cloud-init, ensuring the environment is identical on every provisioning.
+To address these limitations, a dedicated Hetzner Cloud virtual machine (`ccx23`: 4 dedicated vCPUs, 16 GB RAM, 160 GB NVMe, Ubuntu 24.04 LTS) was provisioned exclusively for the experiment. The entire environment — server, firewall, Kubernetes distribution, Wasm runtime, and observability stack — is defined as code in this repository using Terraform and cloud-init, ensuring the environment is identical on every provisioning.
 
-**K3s** was chosen as the Kubernetes distribution for the following reasons:
+**Upstream Kubernetes via kubeadm** was chosen as the Kubernetes distribution for the following reasons:
 
+- It is the reference installer in the official Kubernetes documentation and the foundation that the managed services used in production (AWS EKS, Google GKE, Azure AKS) run underneath; using it removes distribution-specific confounds from the runtime comparison.
 - It uses containerd directly as its container runtime, which integrates cleanly with `containerd-shim-spin-v2` for SpinKube (Wasmtime) workloads.
-- Its minimal footprint (single binary, SQLite-backed control plane) leaves more RAM available for the workloads under measurement.
-- It is designed for production use, making its scheduling and runtime behaviour more representative of real deployment targets than Minikube or k3d.
-
-Traefik was disabled at install time (`--disable traefik`) to avoid introducing an irrelevant processing layer between the load generator and the measured services.
+- The ccx23 sizing provides comfortable headroom (4 vCPU, 16 GB RAM) above the combined footprint of the kubeadm control plane, the kube-prometheus-stack observability stack, the SpinOperator, and the benchmark workloads — including the unlimited-mode scaling experiment.
 
 ---
 
@@ -35,8 +33,8 @@ Traefik was disabled at install time (`--disable traefik`) to avoid introducing 
 
 | Aspect | Local (rejected) | Dedicated VM (chosen) |
 |---|---|---|
-| Cluster host | Personal Ubuntu laptop | Hetzner Cloud `ccx13` |
-| Kubernetes tool | Minikube / k3d | K3s v1.34.5 |
+| Cluster host | Personal Ubuntu laptop | Hetzner Cloud `ccx23` |
+| Kubernetes tool | Minikube / k3d | Kubernetes v1.34 (kubeadm) |
 | Environment definition | Manual | Terraform + cloud-init |
 | Reproducibility | Low | Full (infra-as-code) |
 | Measurement isolation | Low | High (single-purpose host) |

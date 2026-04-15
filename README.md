@@ -11,9 +11,9 @@ and WebAssembly (WASI Preview 2 (P2)) workloads side-by-side, with Prometheus an
 ## Architecture overview
 
 ```text
-Hetzner Cloud (ccx13 — 2 vCPU, 8 GB RAM, 80 GB disk)
+Hetzner Cloud (ccx23 — 4 vCPU, 16 GB RAM, 160 GB NVMe)
 └── Ubuntu 24.04
-    └── k3s (lightweight Kubernetes, no Traefik)
+    └── Kubernetes 1.34 (kubeadm, single-node control plane, Flannel CNI)
         ├── SpinKube runtime  ← WASI P2 Wasm pods via containerd-shim-spin-v2
         ├── runc              ← standard Docker/OCI pods
         └── observability namespace
@@ -25,7 +25,7 @@ Hetzner Cloud (ccx13 — 2 vCPU, 8 GB RAM, 80 GB disk)
 
 | Component               | Version / Detail                                        |
 | ----------------------- | ------------------------------------------------------- |
-| k3s                     | v1.35.2+k3s1 (containerd v2)                           |
+| Kubernetes              | v1.34.x (kubeadm; containerd 2.x; Flannel CNI)         |
 | containerd-shim-spin-v2 | v0.17.0 (SpinKube; embeds Spin + Wasmtime/Cranelift)   |
 | SpinOperator            | v0.6.1 (Helm, `spinoperator` chart; manages SpinApp CRDs) |
 | cert-manager            | v1.16.3 (prerequisite for SpinOperator webhooks)       |
@@ -75,7 +75,7 @@ Create `terraform.tfvars` in this directory:
 ```hcl
 admin_ip_cidr = "YOUR_PUBLIC_IP/32"   # only your IP can SSH and reach NodePorts
 ssh_key_name  = "your-key-name"       # name of the SSH key in Hetzner Cloud dashboard
-server_type   = "ccx13"
+server_type   = "ccx23"
 os_image      = "ubuntu-24.04"
 location      = "nbg1"                # Nuremberg
 ```
@@ -103,8 +103,8 @@ terraform init
 ## Full setup — step by step
 
 ```bash
-make up            # 1. Provision Hetzner server + run cloud-init (k3s + containerd-shim-spin-v2)
-make configure     # 2. Wait for k3s, fetch kubeconfig → hetzner-thesis.yaml
+make up            # 1. Provision Hetzner server + run cloud-init (kubeadm + containerd-shim-spin-v2)
+make configure     # 2. Wait for kubeadm, fetch kubeconfig → hetzner-thesis.yaml
 make label         # 3. Label node with SpinKube capability (runtime.spin.fermyon.com/v2=true)
 make deploy        # 4. Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass
 make test          # 5. Smoke-test: run a SpinApp pod and verify HTTP 200
@@ -139,7 +139,7 @@ kubectl get pods -A
 ├── main.tf                    # Terraform: Hetzner server + firewall
 ├── variables.tf               # Terraform: input variable declarations
 ├── terraform.tfvars           # Your local config (not committed)
-├── cloud-init.sh              # Bootstrap script (k3s + containerd-shim-spin-v2)
+├── cloud-init.sh              # Bootstrap script (kubeadm + containerd-shim-spin-v2)
 ├── spin-runtimeclass.yaml     # Kubernetes RuntimeClass for SpinKube (wasmtime-spin)
 ├── test-spin.yaml             # Smoke-test SpinApp (hello-spin, validates Wasmtime shim)
 ├── observability-values.yaml  # Helm values for kube-prometheus-stack

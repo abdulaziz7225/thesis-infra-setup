@@ -9,7 +9,7 @@ variable "ssh_key_name" {
 }
 
 variable "server_type" {
-  description = "The Hetzner server type (e.g., ccx13)"
+  description = "The Hetzner server type (e.g., ccx23)"
   type        = string
 }
 

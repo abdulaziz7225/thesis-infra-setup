@@ -25,10 +25,12 @@ prometheus:
     evaluationInterval: 5s
     # Keep 7 days of data — more than enough for thesis experiments
     retention: 7d
-    # Persist metrics to the k3s local-path StorageClass (80 GB disk on ccx13)
+    # Persist metrics to the local-path StorageClass (160 GB NVMe on ccx23,
+    # installed by cloud-init.sh and marked as the default StorageClass).
     storageSpec:
       volumeClaimTemplate:
         spec:
+          storageClassName: local-path
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:

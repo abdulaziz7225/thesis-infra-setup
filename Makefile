@@ -28,7 +28,7 @@ setup-local:
 up:
 	terraform apply -auto-approve
 
-# ── 3. Fetch kubeconfig (waits for k3s to be ready) ──────────────────────────
+# ── 3. Fetch kubeconfig (waits for kubeadm to finish) ────────────────────────
 configure:
 	@echo "Waiting for SSH..."
 	@timeout 300 bash -c \
@@ -37,13 +37,13 @@ configure:
 	@echo "Waiting for cloud-init to complete..."
 	@ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) "cloud-init status --wait" 2>/dev/null || \
 		echo "WARNING: cloud-init may have failed — check /var/log/thesis-setup.log on the server"
-	@echo "Waiting for k3s kubeconfig..."
+	@echo "Waiting for kubeadm to finish..."
 	@until ssh $(SSH_OPTS) -i $(SSH_KEY) root@$(IP) \
-		"[ -f /etc/rancher/k3s/k3s.yaml ]" 2>/dev/null; \
-		do sleep 10; echo "Still waiting for k3s..."; done
+		"[ -f /etc/kubernetes/admin.conf ]" 2>/dev/null; \
+		do sleep 10; echo "Still waiting for kubeadm..."; done
 	@echo "Fetching kubeconfig..."
 	scp $(SSH_OPTS) -i $(SSH_KEY) \
-		root@$(IP):/etc/rancher/k3s/k3s.yaml ./hetzner-thesis.yaml
+		root@$(IP):/etc/kubernetes/admin.conf ./hetzner-thesis.yaml
 	sed -i "s/127.0.0.1/$(IP)/g" ./hetzner-thesis.yaml
 	@echo "kubeconfig saved to ./hetzner-thesis.yaml"
 
