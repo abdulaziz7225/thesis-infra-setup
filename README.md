@@ -4,7 +4,7 @@ Infrastructure-as-code for the master thesis:
 **"A Comparative Analysis of WebAssembly and Docker for Microservice Architecture in Kubernetes"**
 
 A single-node Kubernetes cluster on Hetzner Cloud, pre-configured to run both standard OCI containers
-and WebAssembly (WASI Preview 2 (P2)) workloads side-by-side, with Prometheus and Grafana for metrics collection.
+and WebAssembly (WASI P2) workloads side-by-side, with Prometheus and Grafana for metrics collection.
 
 ---
 

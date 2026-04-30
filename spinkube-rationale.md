@@ -10,7 +10,7 @@ over the primary alternative (WasmCloud).
 
 **Fermyon Spin** is an open-source framework for building and running HTTP microservices
 as WebAssembly components. It implements the `wasi:http/incoming-handler` interface from
-WASI Preview 2 (P2), handling all HTTP connection management internally and dispatching each
+WASI P2, handling all HTTP connection management internally and dispatching each
 incoming request to the component's `handle` export. Applications are single-function
 request handlers — no server loop required.
 
@@ -36,7 +36,7 @@ kubelet → containerd → containerd-shim-spin-v2 → Spin → Wasmtime/Craneli
 
 Unlike runc-based containers:
 - The shim owns the HTTP listener (no network namespace hand-off).
-- Each HTTP request instantiates the Wasm component (or reuses a warm instance if `max_instances > 1`).
+- Each HTTP request is dispatched to a Wasmtime instance hosted in the shim; in Spin 2.x the single shim process per pod serves requests via an async dispatch loop, and horizontal scaling is achieved by raising `SpinApp spec.replicas` (not by an in-component instance pool).
 - The component binary + `spin.toml` are packaged together in the Spin OCI artifact, not in a standard Docker image layer.
 
 The SpinOperator manages the `SpinApp` CRD and reconciles it to the desired `spec.replicas`.
@@ -59,7 +59,7 @@ comparison against Docker HTTP microservices:
 | Comparison semantics       | Like-for-like with Docker HTTP service         | Different abstraction (distributed actor mesh) |
 | CNCF status                | Sandbox (January 2025)                         | Incubating (November 2024)                     |
 | Rust support               | First-class (spin-sdk, `#[http_component]`)    | Supported (wasmcloud-component SDK)            |
-| TinyGo support             | Via Spin Go SDK (`spinhttp.Handle()`, wasip1)  | Supported but requires wasmCloud SDK           |
+| TinyGo support             | Via Spin Go SDK (`spinhttp.Handle()`, WASI P1) | Supported but requires wasmCloud SDK           |
 
 The thesis measures HTTP request latency and throughput as the primary metrics. WasmCloud's
 NATS message bus introduces a mandatory network hop for every request, making its latency
@@ -80,7 +80,7 @@ without the SpinOperator. SpinKube/SpinOperator is preferred because:
 
 ---
 
-## `max_instances = 1` for Resource Fairness
+## Single-replica baseline for Resource Fairness
 
 All four benchmark variants (wasm-rust, wasm-tinygo, docker-rust, docker-golang) must
 operate under equivalent resource constraints for the comparison to be valid.
@@ -89,14 +89,24 @@ Docker variants are constrained to single-threaded execution:
 - `docker-rust`: `TOKIO_WORKER_THREADS=1`
 - `docker-golang`: `GOMAXPROCS=1`
 
-Wasm variants use `max_instances = 1` in `spin.toml`, capping concurrent Wasm instances
-to one. This makes Spin's concurrency equivalent to the Docker single-thread constraint.
+Wasm variants are constrained to a single pod (`SpinApp spec.replicas: 1`) hosting a
+single Wasmtime instance. The WASI P1/P2 component model is architecturally
+single-threaded per instance, so one replica means one concurrent execution at a time —
+equivalent to the Docker single-thread constraint. (Earlier Spin 1.x exposed a
+`max_instances` knob in `spin.toml`; that field was removed in Spin 2.x
+[`spin_manifest_version = 2`], so the concurrency cap is enforced at the pod level
+rather than inside the runtime.)
 
 Queuing differs slightly:
 - Docker (1 thread): excess connections queue at the TCP level (OS listen backlog).
-- Spin (max_instances=1): excess requests queue within Spin's HTTP layer before component dispatch.
+- Spin (1 replica, 1 component instance): excess requests queue within Spin's HTTP
+  layer before component dispatch.
 
 This behavioural difference is documented as a confounding variable in the thesis discussion.
+
+The unlimited-mode counterpart raises both knobs symmetrically:
+`TOKIO_WORKER_THREADS=4`, `GOMAXPROCS=4`, and SpinApp `replicas=4` — matching the
+four physical vCPUs of the Hetzner ccx23 host.
 
 ---
 

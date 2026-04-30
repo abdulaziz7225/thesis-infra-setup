@@ -31,8 +31,8 @@ swapoff -a
 sed -i.bak '/\bswap\b/d' /etc/fstab
 
 # ── 3. Install containerd 2.x + runc + CNI plugins from upstream ─────────────
-# Matches the containerd 2.x runtime that k3s shipped previously, keeping the
-# spin RuntimeClass plugin key (io.containerd.cri.v1.runtime) unchanged.
+# containerd 2.x is required for the Spin RuntimeClass plugin key
+# (io.containerd.cri.v1.runtime) used by containerd-shim-spin-v2.
 CONTAINERD_VERSION="2.0.2"
 RUNC_VERSION="1.2.4"
 CNI_PLUGINS_VERSION="1.6.2"
@@ -140,8 +140,8 @@ cp -f /etc/kubernetes/admin.conf /root/.kube/config
 export KUBECONFIG=/etc/kubernetes/admin.conf
 
 # ── 7. Single-node: remove the control-plane taint ───────────────────────────
-# Otherwise no workload pod will schedule on this node (kubeadm taints the
-# control plane by default; k3s did not).
+# kubeadm taints the control plane by default, so on a single-node cluster
+# the workload pods would otherwise have nowhere to schedule.
 kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule- || true
 
 # ── 8. Install Flannel CNI ───────────────────────────────────────────────────
@@ -149,8 +149,9 @@ kubectl taint nodes --all node-role.kubernetes.io/control-plane:NoSchedule- || t
 kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
 
 # ── 9. Install local-path-provisioner + mark as default StorageClass ─────────
-# k3s bundled this; kubeadm does not. The kube-prometheus-stack PVC will bind
-# to this class.
+# kubeadm does not ship a default StorageClass, so the kube-prometheus-stack
+# PVC needs Rancher's local-path-provisioner installed explicitly — otherwise
+# the Prometheus PVC stays Pending.
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 kubectl patch storageclass local-path \
   -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
