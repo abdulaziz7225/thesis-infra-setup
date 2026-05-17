@@ -23,22 +23,22 @@ Hetzner Cloud (ccx23 — 4 vCPU, 16 GB RAM, 160 GB NVMe)
 
 **Key components:**
 
-| Component               | Version / Detail                                        |
-| ----------------------- | ------------------------------------------------------- |
-| Kubernetes              | v1.34.x (kubeadm; containerd 2.x; Flannel CNI)         |
-| containerd-shim-spin-v2 | v0.17.0 (SpinKube; embeds Spin + Wasmtime/Cranelift)   |
+| Component               | Version / Detail                                          |
+| ----------------------- | --------------------------------------------------------- |
+| Kubernetes              | v1.34.x (kubeadm; containerd 2.x; Flannel CNI)            |
+| containerd-shim-spin-v2 | v0.17.0 (SpinKube; embeds Spin + Wasmtime/Cranelift)      |
 | SpinOperator            | v0.6.1 (Helm, `spinoperator` chart; manages SpinApp CRDs) |
-| cert-manager            | v1.16.3 (prerequisite for SpinOperator webhooks)       |
-| kube-prometheus-stack   | via Helm, prometheus-community chart                   |
-| k6                      | installed locally for load testing                     |
+| cert-manager            | v1.16.3 (prerequisite for SpinOperator webhooks)          |
+| kube-prometheus-stack   | via Helm, prometheus-community chart                      |
+| k6                      | installed locally for load testing                        |
 
 **Firewall rules (managed by Terraform):**
 
-| Port        | Access        | Purpose                          |
-| ----------- | ------------- | -------------------------------- |
-| 22          | admin IP only | SSH                              |
-| 6443        | admin IP only | Kubernetes API                   |
-| 80          | public        | HTTP                             |
+| Port        | Access        | Purpose                                            |
+| ----------- | ------------- | -------------------------------------------------- |
+| 22          | admin IP only | SSH                                                |
+| 6443        | admin IP only | Kubernetes API                                     |
+| 80          | public        | HTTP                                               |
 | 30000–32767 | admin IP only | NodePort (Grafana, Prometheus, benchmark services) |
 
 ---
@@ -150,13 +150,13 @@ kubectl get pods -A
 
 ## Makefile reference
 
-| Target               | Description                                                        |
-| -------------------- | ------------------------------------------------------------------ |
-| `setup-local`        | Install k6 locally (run once)                                      |
-| `up`                 | `terraform apply` — provision the server                           |
-| `configure`          | Fetch kubeconfig from server → `hetzner-thesis.yaml`               |
-| `label`              | Label node with SpinKube capability (`runtime.spin.fermyon.com/v2=true`) |
-| `deploy`             | Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass |
-| `test`               | Run a Spin smoke-test SpinApp and verify HTTP 200                  |
-| `info`               | Print Grafana/Prometheus URLs and SSH command                      |
-| `teardown`           | `terraform destroy` — delete everything                            |
+| Target        | Description                                                              |
+| ------------- | ------------------------------------------------------------------------ |
+| `setup-local` | Install k6 locally (run once)                                            |
+| `up`          | `terraform apply` — provision the server                                 |
+| `configure`   | Fetch kubeconfig from server → `hetzner-thesis.yaml`                     |
+| `label`       | Label node with SpinKube capability (`runtime.spin.fermyon.com/v2=true`) |
+| `deploy`      | Deploy cert-manager, SpinOperator, Prometheus, Grafana, RuntimeClass     |
+| `test`        | Run a Spin smoke-test SpinApp and verify HTTP 200                        |
+| `info`        | Print Grafana/Prometheus URLs and SSH command                            |
+| `teardown`    | `terraform destroy` — delete everything                                  |

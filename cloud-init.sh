@@ -81,11 +81,32 @@ TOML
 systemctl daemon-reload
 systemctl enable --now containerd
 
-# ── 4. Install containerd-shim-spin-v2 (SpinKube via Wasmtime/Cranelift) ─────
+# ── 4. Install kubeadm, kubelet, kubectl from pkgs.k8s.io ────────────────────
+KUBE_VERSION="1.34"
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/Release.key" \
+  | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/ /" \
+  > /etc/apt/sources.list.d/kubernetes.list
+apt-get update -y
+apt-get install -y kubelet kubeadm kubectl
+apt-mark hold kubelet kubeadm kubectl   # prevent unattended upgrades
+
+# ── 5. Pre-pull kubeadm control-plane images + install spin shim ─────────────
+#
+# kubeadm init would otherwise pull ~6 control-plane images serially from
+# registry.k8s.io (~200 MB) before bootstrapping. Run the pull in the
+# background here so it overlaps with the spin shim download. Pulled images
+# land in containerd's on-disk content store and persist across the restart
+# below.
 #
 # containerd-shim-spin implements the containerd shim v2 protocol directly and
 # embeds the Spin runtime (Wasmtime). It runs Spin applications that export
 # wasi:http/incoming-handler (WASI P2 Component Model).
+kubeadm config images pull --kubernetes-version "stable-${KUBE_VERSION}" \
+  >/var/log/kubeadm-images-pull.log 2>&1 &
+KUBEADM_PULL_PID=$!
+
 SPIN_SHIM_VERSION="0.17.0"
 SPIN_SHIM_TGZ=$(mktemp /tmp/containerd-shim-spin.XXXXXX.tar.gz)
 curl -fsSL --retry 8 --retry-delay 5 --retry-connrefused --retry-all-errors \
@@ -96,19 +117,12 @@ rm -f "${SPIN_SHIM_TGZ}"
 chmod +x /usr/local/bin/containerd-shim-spin-v2
 test -x /usr/local/bin/containerd-shim-spin-v2  # fail loudly if shim is missing
 
+# Block until the pre-pull finishes so the containerd restart below doesn't
+# interrupt in-flight image transfers. `set -e` propagates a pull failure.
+wait "${KUBEADM_PULL_PID}"
+
 # Restart containerd so it picks up both the spin plugin and the shim binary.
 systemctl restart containerd
-
-# ── 5. Install kubeadm, kubelet, kubectl from pkgs.k8s.io ────────────────────
-KUBE_VERSION="1.34"
-install -m 0755 -d /etc/apt/keyrings
-curl -fsSL "https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/Release.key" \
-  | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v${KUBE_VERSION}/deb/ /" \
-  > /etc/apt/sources.list.d/kubernetes.list
-apt-get update -y
-apt-get install -y kubelet kubeadm kubectl
-apt-mark hold kubelet kubeadm kubectl   # prevent unattended upgrades
 
 # ── 6. kubeadm init ──────────────────────────────────────────────────────────
 # Fetch public IP from Hetzner metadata for the API server's TLS SAN
