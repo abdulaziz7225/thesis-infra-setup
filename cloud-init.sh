@@ -24,6 +24,20 @@ net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1
 EOF
+
+# ── 2b. High-concurrency I/O tuning for the 03-http-fanout benchmark ─────────
+# Each inbound request to 03-http-fanout is amplified into N concurrent
+# outbound HTTP GETs (default --users 50 --n 5 → 250 simultaneous connections
+# through the in-cluster CNI to io-echo). Stock kernel defaults on
+# ip_local_port_range, nf_conntrack_max, and somaxconn are not sized for this
+# amplification factor on a single-node cluster — at sustained load the
+# conntrack table fills, ephemeral ports exhaust, and the kube-apiserver becomes
+# unreachable. Bump these so the load test cannot wedge the control plane.
+cat > /etc/sysctl.d/99-thesis-cluster.conf <<'EOF'
+net.ipv4.ip_local_port_range = 1024 65535
+net.netfilter.nf_conntrack_max = 262144
+net.core.somaxconn = 4096
+EOF
 sysctl --system
 
 # Disable swap (kubeadm requirement)
