@@ -43,6 +43,32 @@ Hetzner Cloud (ccx23 — 4 vCPU, 16 GB RAM, 160 GB NVMe)
 
 ---
 
+## Benchmark experiments hosted on this cluster
+
+This infrastructure backs **four complementary HTTP benchmark experiments**
+implemented in the sibling repository
+[abdulaziz7225/thesis-experiments](https://github.com/abdulaziz7225/thesis-experiments).
+Each experiment is implemented four times — once per cell of the
+runtime × language matrix (`wasm-rust`, `wasm-tinygo`, `docker-rust`,
+`docker-golang`) — and deployed serially to this single-node cluster:
+
+| Example               | Workload class            | Spec                                                                                                                                           |
+| --------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `01-prime-sieve`      | CPU-bound                 | [docs/benchmarks/01-prime-sieve.md](https://github.com/abdulaziz7225/thesis-experiments/blob/main/docs/benchmarks/01-prime-sieve.md)           |
+| `02-memory-bandwidth` | memory-bound              | [docs/benchmarks/02-memory-bandwidth.md](https://github.com/abdulaziz7225/thesis-experiments/blob/main/docs/benchmarks/02-memory-bandwidth.md) |
+| `03-http-fanout`      | I/O-bound                 | [docs/benchmarks/03-http-fanout.md](https://github.com/abdulaziz7225/thesis-experiments/blob/main/docs/benchmarks/03-http-fanout.md)           |
+| `04-json-roundtrip`   | serialization + allocator | [docs/benchmarks/04-json-roundtrip.md](https://github.com/abdulaziz7225/thesis-experiments/blob/main/docs/benchmarks/04-json-roundtrip.md)     |
+
+The four examples share the same NodePort range (30081–30084) and must
+not be deployed concurrently — each experiment's `run_experiment.sh`
+orchestrator handles namespace teardown automatically. Cluster
+bring-up instructions live in
+[thesis-experiments/docs/setup/02-infrastructure.md](https://github.com/abdulaziz7225/thesis-experiments/blob/main/docs/setup/02-infrastructure.md);
+all detail on running the experiments is under
+[thesis-experiments/docs/operate/](https://github.com/abdulaziz7225/thesis-experiments/blob/main/docs/operate/).
+
+---
+
 ## Prerequisites
 
 ### Local tools
