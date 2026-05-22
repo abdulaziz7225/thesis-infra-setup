@@ -15,6 +15,7 @@ incoming request to the component's `handle` export. Applications are single-fun
 request handlers — no server loop required.
 
 Key characteristics:
+
 - **Runtime**: Embeds **Wasmtime** (Bytecode Alliance, Cranelift JIT backend) as its Wasm execution engine.
 - **WASI version**: Preview 2 (Component Model, WIT interfaces).
 - **HTTP model**: Synchronous request/response per component invocation — analogous to a serverless function or a single HTTP handler call in Docker.
@@ -22,6 +23,7 @@ Key characteristics:
 
 **SpinKube** is the CNCF Sandbox project (accepted January 2025) that brings Spin to
 Kubernetes via:
+
 1. `containerd-shim-spin-v2` — a containerd shim v2 implementation that embeds Spin (and thus Wasmtime). Operates at the same level as runc.
 2. **SpinOperator** — a Kubernetes operator that manages the `SpinApp` CRD lifecycle, creating Deployments with `runtimeClassName: wasmtime-spin` and validating Spin OCI artifacts.
 3. `wasmtime-spin` RuntimeClass — routes pod scheduling to nodes with `containerd-shim-spin-v2` installed.
@@ -35,6 +37,7 @@ kubelet → containerd → containerd-shim-spin-v2 → Spin → Wasmtime/Craneli
 ```
 
 Unlike runc-based containers:
+
 - The shim owns the HTTP listener (no network namespace hand-off).
 - Each HTTP request is dispatched to a Wasmtime instance hosted in the shim; in Spin 2.x the single shim process per pod serves requests via an async dispatch loop, and horizontal scaling is achieved by raising `SpinApp spec.replicas` (not by an in-component instance pool).
 - The component binary + `spin.toml` are packaged together in the Spin OCI artifact, not in a standard Docker image layer.
@@ -51,15 +54,15 @@ Both SpinKube and WasmCloud deploy WASI P2 WebAssembly workloads in Kubernetes. 
 was not chosen because its execution model is fundamentally incompatible with a fair latency
 comparison against Docker HTTP microservices:
 
-| Criterion                  | SpinKube / Fermyon Spin                        | WasmCloud                                      |
-|----------------------------|------------------------------------------------|------------------------------------------------|
-| HTTP execution model       | Direct: Spin owns TCP + dispatches per request | Indirect: requests flow through a NATS broker  |
-| Latency measurement        | Clean — no infrastructure overhead on the path | Contaminated — NATS round-trip added to every request latency |
-| K8s integration level      | containerd shim (pod-level, same as runc)      | Operator above Kubernetes (not pod-level)      |
-| Comparison semantics       | Like-for-like with Docker HTTP service         | Different abstraction (distributed actor mesh) |
-| CNCF status                | Sandbox (January 2025)                         | Incubating (November 2024)                     |
-| Rust support               | First-class (spin-sdk, `#[http_component]`)    | Supported (wasmcloud-component SDK)            |
-| TinyGo support             | Via Spin Go SDK (`spinhttp.Handle()`, WASI P1) | Supported but requires wasmCloud SDK           |
+| Criterion             | SpinKube / Fermyon Spin                        | WasmCloud                                                     |
+| --------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| HTTP execution model  | Direct: Spin owns TCP + dispatches per request | Indirect: requests flow through a NATS broker                 |
+| Latency measurement   | Clean — no infrastructure overhead on the path | Contaminated — NATS round-trip added to every request latency |
+| K8s integration level | containerd shim (pod-level, same as runc)      | Operator above Kubernetes (not pod-level)                     |
+| Comparison semantics  | Like-for-like with Docker HTTP service         | Different abstraction (distributed actor mesh)                |
+| CNCF status           | Sandbox (January 2025)                         | Incubating (November 2024)                                    |
+| Rust support          | First-class (spin-sdk, `#[http_component]`)    | Supported (wasmcloud-component SDK)                           |
+| TinyGo support        | Via Spin Go SDK (`spinhttp.Handle()`, WASI P1) | Supported but requires wasmCloud SDK                          |
 
 The thesis measures HTTP request latency and throughput as the primary metrics. WasmCloud's
 NATS message bus introduces a mandatory network hop for every request, making its latency
@@ -85,7 +88,18 @@ without the SpinOperator. SpinKube/SpinOperator is preferred because:
 All four benchmark variants (wasm-rust, wasm-tinygo, docker-rust, docker-golang) must
 operate under equivalent resource constraints for the comparison to be valid.
 
+The variant matrix is exercised across **four complementary HTTP workloads**, not
+the two originally scoped: `01-prime-sieve` (CPU-bound), `02-memory-bandwidth`
+(memory-bound), `03-http-fanout` (I/O-bound, with an in-cluster `io-echo`
+backend), and `04-json-roundtrip` (serialization + allocator, with an N-sweep
+load profile). The 03 fan-out workload amplifies inbound traffic by a factor
+of N (default 5) into concurrent outbound HTTP GETs, which is why this repo's
+`cloud-init.sh` raises `nf_conntrack_max`, `ip_local_port_range`, and
+`somaxconn` for the single-node cluster. Per-experiment specs live under
+[`../thesis-experiments/docs/benchmarks/`](https://github.com/abdulaziz7225/thesis-experiments/tree/main/docs/benchmarks).
+
 Docker variants are constrained to single-threaded execution:
+
 - `docker-rust`: `TOKIO_WORKER_THREADS=1`
 - `docker-golang`: `GOMAXPROCS=1`
 
@@ -98,6 +112,7 @@ equivalent to the Docker single-thread constraint. (Earlier Spin 1.x exposed a
 rather than inside the runtime.)
 
 Queuing differs slightly:
+
 - Docker (1 thread): excess connections queue at the TCP level (OS listen backlog).
 - Spin (1 replica, 1 component instance): excess requests queue within Spin's HTTP
   layer before component dispatch.
