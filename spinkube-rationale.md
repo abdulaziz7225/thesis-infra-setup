@@ -88,8 +88,7 @@ without the SpinOperator. SpinKube/SpinOperator is preferred because:
 All four benchmark variants (wasm-rust, wasm-tinygo, docker-rust, docker-golang) must
 operate under equivalent resource constraints for the comparison to be valid.
 
-The variant matrix is exercised across **four complementary HTTP workloads**, not
-the two originally scoped: `01-prime-sieve` (CPU-bound), `02-memory-bandwidth`
+The variant matrix is exercised across **four complementary HTTP workloads**: `01-prime-sieve` (CPU-bound), `02-memory-bandwidth`
 (memory-bound), `03-http-fanout` (I/O-bound, with an in-cluster `io-echo`
 backend), and `04-json-roundtrip` (serialization + allocator, with an N-sweep
 load profile). The 03 fan-out workload amplifies inbound traffic by a factor
@@ -106,10 +105,7 @@ Docker variants are constrained to single-threaded execution:
 Wasm variants are constrained to a single pod (`SpinApp spec.replicas: 1`) hosting a
 single Wasmtime instance. The WASI P1/P2 component model is architecturally
 single-threaded per instance, so one replica means one concurrent execution at a time —
-equivalent to the Docker single-thread constraint. (Earlier Spin 1.x exposed a
-`max_instances` knob in `spin.toml`; that field was removed in Spin 2.x
-[`spin_manifest_version = 2`], so the concurrency cap is enforced at the pod level
-rather than inside the runtime.)
+equivalent to the Docker single-thread constraint.
 
 Queuing differs slightly:
 

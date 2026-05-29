@@ -30,8 +30,6 @@ resource "hcloud_firewall" "k8s_firewall" {
     source_ips = [var.admin_ip_cidr]
   }
 
-  # Port 80 — reserved for HTTP ingress traffic during thesis experiment workloads
-  # (WASM vs Docker microservice benchmarks exposed via the cluster NodePort range or a future ingress)
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -56,8 +54,6 @@ resource "hcloud_server" "k8s_node" {
   ssh_keys     = [data.hcloud_ssh_key.default.id]
   firewall_ids = [hcloud_firewall.k8s_firewall.id]
 
-  # Bootstrap script — stored in cloud-init.sh to avoid heredoc indentation issues
-  # (Terraform <<-EOF strips tabs only, not spaces, which breaks the shebang)
   user_data = file("${path.module}/cloud-init.sh")
 }
 

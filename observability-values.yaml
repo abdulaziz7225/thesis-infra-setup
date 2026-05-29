@@ -23,10 +23,8 @@ prometheus:
     # 5s intervals give fine-grained resolution for short load-test runs
     scrapeInterval: 5s
     evaluationInterval: 5s
-    # Keep 7 days of data — more than enough for thesis experiments
     retention: 7d
-    # Persist metrics to the local-path StorageClass (160 GB NVMe on ccx23,
-    # installed by cloud-init.sh and marked as the default StorageClass).
+    # Persist metrics to the local-path StorageClass
     storageSpec:
       volumeClaimTemplate:
         spec:
@@ -36,6 +34,5 @@ prometheus:
             requests:
               storage: 10Gi
 
-# Disable AlertManager — not needed for experiments, saves RAM
 alertmanager:
   enabled: false
